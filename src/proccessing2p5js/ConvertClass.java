@@ -39,8 +39,9 @@ public class ConvertClass {
             + "\n"
             + "}";
 
-    public static void convertClasses(StringBuffer procKod) {
+    public static ArrayList<String> convertClasses(StringBuffer procKod) {
 //        String patternStr = "(public|private)? class \\s+([a-zA-Z0-9]+)\\([ ,.a-zA-Z0-9]*\\)\\s*\\{";
+        ArrayList<String> classList = new ArrayList<String>();
         String patternStr = "(private|public)?\\s*class\\s+([a-zA-Z0-9]+)\\s*\\{";
 
         Pattern pattern = Pattern.compile(patternStr);
@@ -52,6 +53,7 @@ public class ConvertClass {
             //end=procKod.indexOf("{",end)
             end = passCurlyBrackets(procKod, end - 1);
             String classCode = procKod.substring(start, end);
+            classList.add(getClassName(classCode.trim()));
             System.out.println("classCode = " + classCode);
             String newCode = convertClass(classCode);
             procKod.replace(start, end, newCode);
@@ -61,7 +63,7 @@ public class ConvertClass {
         if (end == 0) {
             System.out.println("Ingen klass hittad");
         }
-
+        return classList;
     }
 
     public static String convertClass(String code) {
@@ -70,13 +72,16 @@ public class ConvertClass {
         code = removeIfFirst(code, "public");
         code = removeIfFirst(code, "private");
         StringBuffer codeBuf = new StringBuffer(code);
-        ArrayList<String> members = getMembers(codeBuf);
+        ArrayList<String> members = getAndDeleteMembers(codeBuf);
+        String initCode = getMembersAndInit(codeBuf, members);//Obs lägger till i members
+        System.out.println("convertClass initCode = " + initCode);
         //fixMemberVariablesinMethods(codeBuf);
         code = codeBuf.toString();
         System.out.println("members = " + members);
         code = code.trim();
         String className = getClassName(code);
-        code = changeConstructorName(code, className, members);
+        System.out.println("convertClass className = " + className);
+        code = changeConstructor(code, className, members, initCode);
         code = convertFunctions(new StringBuffer(code), members);
         //code = removeMembers(code);
         return code;
@@ -85,11 +90,11 @@ public class ConvertClass {
     /*private static void fixMemberVariablesinMethods(StringBuffer codeBuf){
         Pattern function = Pattern.compile(patternStr);
     }*/
-    private static ArrayList<String> getMembers(StringBuffer codeBuf) {
+    private static ArrayList<String> getAndDeleteMembers(StringBuffer codeBuf) {
 
         ArrayList<String> mem = new ArrayList<>();
 
-        String patternStr = "(void|color|int|float|double|long|String|StringBuffer|char|byte)\\s+([a-zA-Z]+);";
+        String patternStr = "(void|color|int|float|double|long|String|StringBuffer|char|byte)\\s+([a-zA-Z]+)\\s*;";
         Pattern function = Pattern.compile(patternStr);
 
         Matcher m = function.matcher(codeBuf);
@@ -116,6 +121,41 @@ public class ConvertClass {
         }
 
         return mem;
+    }
+    private static String getMembersAndInit(StringBuffer codeBuf, ArrayList<String> mem) {
+
+
+        String patternStr = "(void|color|int|float|double|long|String|StringBuffer|char|byte)\\s+([a-zA-Z]+)(\\s*=\\s*.+;)";
+        Pattern function = Pattern.compile(patternStr);
+        String initCode="";
+        Matcher m = function.matcher(codeBuf);
+        int end = codeBuf.indexOf("{") + 1;
+        while (m.find(end)) {
+            //int start = funcm.start();
+
+            //String funcname = funcm.group(2);
+            String varNamn = m.group(2);
+//            String init = "this."+varNamn+m.group(3);
+            String init = varNamn+m.group(3);
+            //System.out.println("m.group(0) = " + m.group(0));
+            System.out.println("getAndDeleteMembers init = " + init);
+            int nextCurly = codeBuf.indexOf("{", end);
+            //System.out.println("nextCurly = " + nextCurly);
+            //System.out.println("m.start() = " + m.start());
+            if (nextCurly < m.start()) {
+                end = passCurlyBrackets(codeBuf, nextCurly);
+            } else {
+                // System.out.println("varNamn = " + varNamn);
+                mem.add(varNamn);
+                codeBuf.delete(m.start(), m.end());
+                end = m.end();
+                end -= m.group().length();
+                initCode+="    "+init+"\n";
+
+            }
+        }
+
+        return initCode;
     }
 
     private static int passCurlyBrackets(StringBuffer strBuf, int start) {
@@ -147,22 +187,25 @@ public class ConvertClass {
         }
         return start;
     }
-
-    private static String changeConstructorName(String code, String className, ArrayList<String> members) {
+    private static void insertInitCode(StringBuffer codeBuf, int start,  String initCode) {
+        int startBody = codeBuf.indexOf("{", start) + 1;
+        codeBuf.insert(startBody+1, "\n"+initCode);
+    }
+    private static String changeConstructor(String code, String className, ArrayList<String> members, String initCode) {
         String searchString = className + "\\(";
         System.out.println("changeConstructorName searchString = " + searchString);
         code = code.replaceAll(searchString, "constructor(");
-        String pStr = "(void|int|float|double|long|String|StringBuffer|char|byte)";
+        //String pStr = "(void|int|float|double|long|String|StringBuffer|char|byte)";
         StringBuffer procKod = new StringBuffer(code);
         String functionPatternStr = "constructor\\([ ,.a-zA-Z0-9]*\\)";
         Pattern functionPattern = Pattern.compile(functionPatternStr);
-        Matcher funcm = functionPattern.matcher(procKod);
+        Matcher consm = functionPattern.matcher(procKod);
         int end = 0;
-        while (funcm.find(end)) {
-            int start = funcm.start();
-            end = funcm.end();
+        while (consm.find(end)) {
+            int start = consm.start();
+            end = consm.end();
             //String funcname = funcm.group(2);
-            String funcExp = funcm.group(0);
+            String funcExp = consm.group(0);
             funcExp = funcExp.replaceAll("(void|color|int|float|double|long|String|StringBuffer|char|byte)", "");
             procKod.replace(start, end, funcExp);
 
@@ -171,6 +214,8 @@ public class ConvertClass {
             printArray(paramList);
             // procKod.replace(start, end, funcExp);
             end = start + funcExp.length();
+            insertInitCode(procKod, end, initCode);
+            System.out.println("changeConstructor efter insertIninitCode procKod = " + procKod);
             fixMemberVariablesinMethods(procKod, end, paramList, members);
         }
         if (end == 0) {
@@ -212,8 +257,8 @@ public class ConvertClass {
         while (m.find(end)) {
             int start = m.start();
             end = m.end();
-           if (!Character.isLetter(codeBuf.charAt(start - 1))&&
-                   !Character.isLetter(codeBuf.charAt(end))) {
+            if (!Character.isLetter(codeBuf.charAt(start - 1))
+                    && !Character.isLetter(codeBuf.charAt(end))) {
                 codeBuf.replace(start, end, repl);
                 end = end + repl.length() - var.length();
             }
@@ -323,12 +368,13 @@ public class ConvertClass {
         int end = -1;
         for (int i = "class".length() + start; i < code.length() && (end == -1); i++) {
             if (code.charAt(i) == ' ' || code.charAt(i) == '{') {
-                end = i ;
+                end = i;
             }
         }
         //System.out.println("getClassName end = " + end);
         String name = code.substring(start, end);
         //System.out.println("getClassName name = '" + name + "'");
+        name=name.trim();
         return name;
     }
 

@@ -5,6 +5,7 @@
  */
 package proccessing2p5js;
 
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -13,9 +14,11 @@ import java.util.regex.Pattern;
  * @author dahjon
  */
 public class Konverter {
+    public static final String BASETYPES = "void|color|int|float|double|long|String|StringBuffer|char|byte";
 
     static String[][] replaceFunctions = {
         {"size", "createCanvas"},
+        {"println", "print"},
         {"mousePressed", "touchStarted"},
         {"mouseDragged", "touchMoved"},
         {"mouseReleased", "touchEnded"},};
@@ -30,11 +33,14 @@ public class Konverter {
     };
 
     static public StringBuffer konvert(StringBuffer procKod) {
-        ConvertClass.convertClasses(procKod);
-        convertFunctions(procKod);
+        ArrayList<String> classList = ConvertClass.convertClasses(procKod);
+        System.out.println("classList = " + classList);
+        String allTypes=getAllTypes(classList);
+        System.out.println("allTypes = " + allTypes);
+        convertFunctions(procKod, allTypes);
         convertArraysDeclaration(procKod);
         convertOneDimArrayCreation(procKod);
-        convertVariables(procKod);
+        convertVariables(procKod, allTypes);
         replaceFunctions(procKod);
         removeCasts(procKod);
         procKod = replaceVariables(procKod);
@@ -42,9 +48,9 @@ public class Konverter {
         return procKod;
     }
 
-    public static void convertFunctions(StringBuffer procKod) {
+    public static void convertFunctions(StringBuffer procKod, String allTypes) {
         //        String functionPatternStr = "([a-zA-Z0-9]+)\\[([ ,.a-zA-Z0-9]+)\\]";
-        String functionPatternStr = "(void|int|float|double|long|String|StringBuffer|char|byte)\\s+([a-zA-Z0-9]+)\\([ ,.a-zA-Z0-9]*\\)";
+        String functionPatternStr = "("+allTypes+")\\s+([a-zA-Z0-9]+)\\([ ,.a-zA-Z0-9]*\\)";
         Pattern functionPattern = Pattern.compile(functionPatternStr);
         Matcher funcm = functionPattern.matcher(procKod);
         int end = 0;
@@ -53,8 +59,8 @@ public class Konverter {
             end=funcm.end();
             String funcname = funcm.group(2);
             String funcExp = funcm.group(0);
-            funcExp=funcExp.replaceFirst("(void|color|int|float|double|long|String|StringBuffer|char|byte)", "function");
-            funcExp=funcExp.replaceAll("(void|color|int|float|double|long|String|StringBuffer|char|byte)", "");
+            funcExp=funcExp.replaceFirst("("+allTypes+")", "function");
+            funcExp=funcExp.replaceAll("("+allTypes+")", "");
             procKod.replace(start, end, funcExp);
             
 /*            System.out.println("funcm.group(0): "+funcExp);
@@ -97,8 +103,8 @@ public class Konverter {
         }
     }
 
-    private static void convertVariables(StringBuffer procKod) {
-        Pattern vairablePattern = Pattern.compile("(void|color|int|float|double|long|String|StringBuffer|char|byte)\\s+([a-zA-Z0-9]+)");
+    private static void convertVariables(StringBuffer procKod, String allTypes) {
+        Pattern vairablePattern = Pattern.compile("("+allTypes+")\\s+([a-zA-Z0-9]+)");
         //Pattern vairablePattern = Pattern.compile("(void|color|int|float|double|long|String|StringBuffer|char|byte) ([a-zA-Z0-9]+)^\\(");
         Matcher varm = vairablePattern.matcher(procKod);
         int end = 0;
@@ -296,6 +302,15 @@ public class Konverter {
         //procKod.delete(start, start + totlen);
         //procKod.insert(start, str);
         return type;
+    }
+
+    private static String getAllTypes(ArrayList<String> classList) {
+        String all=BASETYPES;
+        for (int i = 0; i < classList.size(); i++) {
+            String cl = classList.get(i);
+            all+="|"+cl;
+        }
+        return all;
     }
 
 }
