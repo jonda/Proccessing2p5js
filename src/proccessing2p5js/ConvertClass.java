@@ -194,14 +194,14 @@ public class ConvertClass {
     private static String changeConstructor(String code, String className, ArrayList<String> members, String initCode) {
         String searchString = className + "\\(";
         System.out.println("changeConstructorName searchString = " + searchString);
-        code = code.replaceAll(searchString, "constructor(");
+        code = code.replaceFirst(searchString, "constructor(");
         //String pStr = "(void|int|float|double|long|String|StringBuffer|char|byte)";
         StringBuffer procKod = new StringBuffer(code);
         String functionPatternStr = "constructor\\([ ,.a-zA-Z0-9]*\\)";
         Pattern functionPattern = Pattern.compile(functionPatternStr);
         Matcher consm = functionPattern.matcher(procKod);
         int end = 0;
-        while (consm.find(end)) {
+        if (consm.find(end)) {
             int start = consm.start();
             end = consm.end();
             //String funcname = funcm.group(2);

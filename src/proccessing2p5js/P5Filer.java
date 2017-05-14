@@ -54,7 +54,7 @@ public class P5Filer {
         String pathStr = BASE_OUTPUT_DIR + File.separator + dirName + File.separator + HTML_FILE_NAME;
         String html = "<html>\n"
                 + "  <head>\n"
-                + "    <script src=\"//cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.8/p5.js\"></script>\n"
+                + "    <script src=\"//cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.9/p5.js\"></script>\n"
                 + "    <script src=\""
                 + fileName
                 + "\"></script>\n"

@@ -14,14 +14,22 @@ import java.util.regex.Pattern;
  * @author dahjon
  */
 public class Konverter {
-    public static final String BASETYPES = "void|color|int|float|double|long|String|StringBuffer|char|byte";
+
+    public static final String BASETYPES = "void|boolean|color|int|float|double|long|String|StringBuffer|char|byte|ArrayList<.+>|PVector";
 
     static String[][] replaceFunctions = {
         {"size", "createCanvas"},
         {"println", "print"},
         {"mousePressed", "touchStarted"},
         {"mouseDragged", "touchMoved"},
-        {"mouseReleased", "touchEnded"},};
+        {"mouseReleased", "touchEnded"},
+        {"pushMatrix", "push"},
+        {"popMatrix", "pop"},
+        {"Integer.parseInt", "Number"},
+        {"Double.pareDouble", "Number"},
+        {"Integer.valueOf", "Number"},
+        {"Double.valueOf", "Number"},
+        {"new PVector", "createVector"},};
 
     static String[][] replaceVariables = {
         {"keyPressed", "keyIsPressed"},
@@ -29,16 +37,23 @@ public class Konverter {
         {"RIGHT", "RIGHT_ARROW"},
         {"UP", "UP_ARROW"},
         {"DOWN", "DOWN_ARROW"},
+        {"THIRD_PI", "(PI/3)"},
         {"mousePressed", "mouseIsPressed"}
     };
 
     static public StringBuffer konvert(StringBuffer procKod) {
+        convertColorComparison(procKod);
         ArrayList<String> classList = ConvertClass.convertClasses(procKod);
+        ConvertPVector.convertPVector(procKod);
         System.out.println("classList = " + classList);
-        String allTypes=getAllTypes(classList);
+        String allTypes = getAllTypes(classList);
         System.out.println("allTypes = " + allTypes);
+        ConvertArrayLists.convertArrayLists(procKod);
         convertFunctions(procKod, allTypes);
+        convertThreeDimArrayCreation(procKod);
+        convertTwoDimArrayCreation(procKod);
         convertArraysDeclaration(procKod);
+
         convertOneDimArrayCreation(procKod);
         convertVariables(procKod, allTypes);
         replaceFunctions(procKod);
@@ -50,20 +65,21 @@ public class Konverter {
 
     public static void convertFunctions(StringBuffer procKod, String allTypes) {
         //        String functionPatternStr = "([a-zA-Z0-9]+)\\[([ ,.a-zA-Z0-9]+)\\]";
-        String functionPatternStr = "("+allTypes+")\\s+([a-zA-Z0-9]+)\\([ ,.a-zA-Z0-9]*\\)";
+        String functionPatternStr = "(" + allTypes + ")\\s+([a-zA-Z0-9]+)\\([ ,.a-zA-Z0-9\\[\\]]*\\)";
         Pattern functionPattern = Pattern.compile(functionPatternStr);
         Matcher funcm = functionPattern.matcher(procKod);
         int end = 0;
         while (funcm.find(end)) {
             int start = funcm.start();
-            end=funcm.end();
+            end = funcm.end();
             String funcname = funcm.group(2);
             String funcExp = funcm.group(0);
-            funcExp=funcExp.replaceFirst("("+allTypes+")", "function");
-            funcExp=funcExp.replaceAll("("+allTypes+")", "");
+            funcExp = funcExp.replaceFirst("(" + allTypes + ")", "function");
+            funcExp = funcExp.replaceAll("(" + allTypes + ")", "");
+            funcExp = funcExp.replaceAll("\\[\\]", "");
             procKod.replace(start, end, funcExp);
-            
-/*            System.out.println("funcm.group(0): "+funcExp);
+
+            /*            System.out.println("funcm.group(0): "+funcExp);
             System.out.println("\nfunctions namn: '" + funcname + "'\n");
 
             String type = replaceFirstMatch(funcm, procKod, "function");
@@ -71,11 +87,9 @@ public class Konverter {
             //System.out.println("end = " + end);
             end += "function".length() - type.length();
             int start = funcm.start();*/
-
             //System.out.println(type);
             //Pattern paramPattern = Pattern.compile("(void|int|float|double|long|String|StringBuffer|char|byte) [a-zA-Z0-9]+");
-            
-/*            Pattern paramPattern = Pattern.compile("(void|color|int|float|double|long|String|StringBuffer|char|byte)");
+            /*            Pattern paramPattern = Pattern.compile("(void|color|int|float|double|long|String|StringBuffer|char|byte)");
             Matcher paramm = paramPattern.matcher(procKod);
 //            System.out.println("start = " + start);
 //            System.out.println("end = " + end);
@@ -104,7 +118,7 @@ public class Konverter {
     }
 
     private static void convertVariables(StringBuffer procKod, String allTypes) {
-        Pattern vairablePattern = Pattern.compile("("+allTypes+")\\s+([a-zA-Z0-9]+)");
+        Pattern vairablePattern = Pattern.compile("(" + allTypes + ")\\s+([a-zA-Z0-9]+)");
         //Pattern vairablePattern = Pattern.compile("(void|color|int|float|double|long|String|StringBuffer|char|byte) ([a-zA-Z0-9]+)^\\(");
         Matcher varm = vairablePattern.matcher(procKod);
         int end = 0;
@@ -121,7 +135,7 @@ public class Konverter {
 
     private static void convertArraysDeclaration(StringBuffer procKod) {
 //        Pattern vairablePattern = Pattern.compile("(void|color|int|float|double|long|String|StringBuffer|char|byte)([\\[\\]]+)\\s*([a-zA-Z0-9]+)\\s*[;=]");
-        Pattern vairablePattern = Pattern.compile("([a-zA-Z0-9]+)([\\[\\]]+)\\s*([a-zA-Z0-9]+)\\s*[;=]");
+        Pattern vairablePattern = Pattern.compile("([a-zA-Z0-9]+)(\\s*[\\[\\]]+)\\s*([a-zA-Z0-9]+)\\s*[;=]");
         Matcher varm = vairablePattern.matcher(procKod);
         int end = 0;
         while (varm.find(end)) {
@@ -140,9 +154,9 @@ public class Konverter {
         }
 
     }
-
 //int[] position = {20,22,25,30,35,40,42,40,35,30,25,22,20,17,15,14,13,14,15,17,19,20,20};
     //new int[40]
+
     private static void convertOneDimArrayCreation(StringBuffer procKod) {
 //        Pattern pattern = Pattern.compile("new (color|int|float|double|long|String|StringBuffer|char|byte)(\\[[a-zA-Z0-9]+\\])");
         Pattern pattern = Pattern.compile("new ([a-zA-Z0-9]+)(\\[[a-zA-Z0-9]+\\])");
@@ -165,39 +179,85 @@ public class Konverter {
         }
         pattern = Pattern.compile("=\\s*\\{.+\\};");
         varm = pattern.matcher(procKod);
-        end=0;
+        end = 0;
         while (varm.find(end)) {
-            end=varm.end();
-            String arrInit=varm.group(0);
+            end = varm.end();
+            String arrInit = varm.group(0);
             System.out.println("convertOneDimArrayCreation arrInit = " + arrInit);
-            arrInit=arrInit.replaceAll("\\{", "[");
-            arrInit=arrInit.replaceAll("\\}", "]");
+            arrInit = arrInit.replaceAll("\\{", "[");
+            arrInit = arrInit.replaceAll("\\}", "]");
             procKod.replace(varm.start(), end, arrInit);
+
+        }
+
+    }
+    //new int[10][20];
+    //var a = new Array(); 
+//while(a.push(new Array(20)) < 10);
+
+    private static void convertTwoDimArrayCreation(StringBuffer procKod) {
+//        Pattern pattern = Pattern.compile("new (color|int|float|double|long|String|StringBuffer|char|byte)(\\[[a-zA-Z0-9]+\\])");
+        Pattern pattern = Pattern.compile("new [a-zA-Z0-9]+\\[([a-zA-Z0-9]+)\\]\\[([a-zA-Z0-9]+)\\]");
+        Matcher varm = pattern.matcher(procKod);
+        while (varm.find()) {
+            System.out.println("convertTwoDimArrayCreation varm.group(0) = " + varm.group(0));
+            System.out.println("convertTwoDimArrayCreation varm.group(1) = " + varm.group(1));
+            System.out.println("convertTwoDimArrayCreation varm.group(2) = " + varm.group(2));
+
+            String arrStr = "processing2p5jsNew2DArray(" + varm.group(1) + "," + varm.group(2) + ")";
+            procKod.replace(varm.start(), varm.end(), arrStr);
+            InsertFunctions.insert(procKod, InsertFunctions.New2DArray);
+            //System.out.println("convertTwoDimArrayCreation varm.group(3) = " + varm.group(3));
+
+        }
+
+    }
+
+    private static void convertThreeDimArrayCreation(StringBuffer procKod) {
+//        Pattern pattern = Pattern.compile("new (color|int|float|double|long|String|StringBuffer|char|byte)(\\[[a-zA-Z0-9]+\\])");
+        Pattern pattern = Pattern.compile("new [a-zA-Z0-9]+\\[([a-zA-Z0-9]+)\\]\\[([a-zA-Z0-9]+)\\]\\[([a-zA-Z0-9]+)\\]");
+        Matcher varm = pattern.matcher(procKod);
+        while (varm.find()) {
+            System.out.println("convertThreeDimArrayCreation varm.group(0) = " + varm.group(0));
+            System.out.println("convertThreeDimArrayCreation varm.group(1) = " + varm.group(1));
+            System.out.println("convertThreeDimArrayCreation varm.group(2) = " + varm.group(2));
+
+            String arrStr = "processing2p5jsNew3DArray(" + varm.group(1) + "," + varm.group(2) + "," + varm.group(3) + ")";
+            procKod.replace(varm.start(), varm.end(), arrStr);
+            InsertFunctions.insert(procKod, InsertFunctions.New3DArray);
+            //System.out.println("convertTwoDimArrayCreation varm.group(3) = " + varm.group(3));
 
         }
 
     }
 
     private static void replaceFunctions(StringBuffer procKod) {
-        String functionPatternStr = "([a-zA-Z0-9]+)\\s*\\([ ,.a-zA-Z0-9]*\\)";
+//        String functionPatternStr = "([a-zA-Z0-9]+)\\s*\\([ ,.a-zA-Z0-9]*\\)";
+        String functionPatternStr = "([a-zA-Z0-9]+)\\s*\\(";
         Pattern functionPattern = Pattern.compile(functionPatternStr);
-        Matcher funcm = functionPattern.matcher(procKod);
+        Matcher m = functionPattern.matcher(procKod);
         int end = 0;
-        while (funcm.find(end)) {
-            end = funcm.end();
+        while (m.find(end)) {
+            end = m.end();
 
-            String funcname = funcm.group(1);
-            //System.out.println("replaceFunctions funcname: " + funcname);
-            String news = getReplaceFunction(funcname);
+            String funcname = m.group(1);
+            System.out.println("replaceFunctions funcname: " + funcname);
+            String news = searchReplaceFunction(funcname);
             if (news != null) {
-                String name = replaceFirstMatch(funcm, procKod, news);
-                end += news.length() - name.length();
+                System.out.println("replaceFunctions m.start(1) = " + m.start(1));
+                char charBefore = procKod.charAt(m.start(1) - 1);
+                //String name = replaceFirstMatch(funcm, procKod, news);
+                //  end += news.length() - name.length();
+                if (!(Character.isLetter(charBefore) || charBefore == '.')) {
+                    procKod.replace(m.start(1), m.end(1), news);
+                    end = m.start(1) + news.length();
+                }
 
             }
         }
     }
 
-    public static String getReplaceFunction(String old) {
+    public static String searchReplaceFunction(String old) {
         for (int i = 0; i < replaceFunctions.length; i++) {
             String[] replaceFunction = replaceFunctions[i];
             if (old.equals(replaceFunction[0])) {
@@ -305,12 +365,77 @@ public class Konverter {
     }
 
     private static String getAllTypes(ArrayList<String> classList) {
-        String all=BASETYPES;
+        String all = BASETYPES;
         for (int i = 0; i < classList.size(); i++) {
             String cl = classList.get(i);
-            all+="|"+cl;
+            all += "|" + cl;
         }
         return all;
     }
 
+    /*
+    color red;  */
+    private static void convertColorComparison(StringBuffer procKod) {
+        ArrayList<String> colorNames = new ArrayList<>();
+        Pattern pattern = Pattern.compile("\n\\s*color\\s+([A-Za-z0-9]+)[;=]");
+        Matcher m = pattern.matcher(procKod);
+        while (m.find()) {
+            colorNames.add(m.group(1));
+            //   System.out.println("convertSize m.group() = " + m.group());
+            //   procKod.replace(m.start(1), m.end(1), ".length");
+        }
+        for (int i = 0; i < colorNames.size(); i++) {
+            String col = colorNames.get(i);
+            pattern = Pattern.compile("==\\s*" + col);
+            Matcher mr = pattern.matcher(procKod);
+            while (mr.find()) {
+                int firstParen = getPreviousParenAndSkippOrOperator(procKod, mr.start());
+                String firstParam = procKod.substring(firstParen+1, mr.start());
+                String newCode="processing2p5jsCompareColors("+firstParam+", "+col+")";
+                procKod.replace(firstParen+1, mr.end(), newCode);
+                InsertFunctions.insert(procKod, InsertFunctions.CompareColors);
+            }
+
+        }
+
+        System.out.println("colorNames = " + colorNames);
+    }
+
+    private static int getPreviousParenAndSkipp(StringBuffer procKod, int start) {
+        int i=start;
+        int antal=0;
+        while(i>0){
+            if(procKod.charAt(i)=='('){
+                antal--;
+            }
+            else if(procKod.charAt(i)==')'){
+                antal++;
+            }
+            if(antal==-1){
+                return i;
+            }
+            i--;
+        }
+        return 0;
+    }
+    private static int getPreviousParenAndSkippOrOperator(StringBuffer procKod, int start) {
+        int i=start;
+        int antal=0;
+        while(i>0){
+            char c = procKod.charAt(i);
+            if(c=='('){
+                antal--;
+            }
+            else if(procKod.charAt(i)==')'){
+                antal++;
+            } else if(c=='|'||c=='&'){
+                return i;
+            }
+            if(antal==-1){
+                return i;
+            }
+            i--;
+        }
+        return 0;
+    }
 }
