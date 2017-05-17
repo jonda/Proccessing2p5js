@@ -60,6 +60,7 @@ public class P5Filer {
                 + "\"></script>\n"
                 + "  </head>\n"
                 + "  <body>\n"
+                + "  <div id='settings'></div>\n"
                 + "  </body>\n"
                 + "</html>";
         Path path = Paths.get(pathStr);

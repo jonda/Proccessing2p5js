@@ -57,7 +57,8 @@ public class ConvertArrayLists {
         //       Pattern pattern = Pattern.compile(name + "(.get\\()[0-9]+(\\))");
         Pattern pattern = Pattern.compile(name + "(.get\\()");
         Matcher m = pattern.matcher(procKod);
-        while (m.find()) {
+        int end=0;
+        while (m.find(end)) {
             int firstBrace = m.end() - 1;
             //System.out.println("convertGet m.group(1) = " + m.group(1));
             //System.out.println("convertGet m.group(2) = " + m.group(2));
@@ -70,6 +71,7 @@ public class ConvertArrayLists {
             procKod.replace(m.start(1), m.end(1), "[");
             //System.out.println("procKod.charAt(m.start(2) efter...: " + procKod.charAt(m.start(2)));
             //System.out.println("m.group() efter...: " + m.group());
+            end=m.start()+(lastBrace-firstBrace);
         }
     }
 
@@ -79,7 +81,7 @@ public class ConvertArrayLists {
         while (m.find()) {
             System.out.println("convertAdd m.group() = " + m.group());
             procKod.replace(m.start(1), m.end(1), ".push(");
-        }
+    }
     }
     private static void convertSize(StringBuffer procKod, String name) {
         Pattern pattern = Pattern.compile(name + "(.size\\(\\s*\\))");
@@ -88,21 +90,21 @@ public class ConvertArrayLists {
             System.out.println("convertSize m.group() = " + m.group());
             procKod.replace(m.start(1), m.end(1), ".length");
         }
-    }    
+    }
 
     private static void convertRemove(StringBuffer procKod, String name) {
-        
+
         //Om remove står först på raden....
         Pattern pattern = Pattern.compile(name + "\n[ \t]*(.remove\\()");
         Matcher m = pattern.matcher(procKod);
         while (m.find()) {
-            System.out.println("convertAdd m.group() = " + m.group());
+            System.out.println("convertRemove m.group() = " + m.group());
 
             procKod.replace(m.start(1), m.end(1), ".splice(");
             int firstBrace = procKod.indexOf("(", m.start(1));
-            System.out.println("convertGet procKod.charAt(firstBrace) = " + procKod.charAt(firstBrace) + " firstBrace: " + firstBrace);
+            System.out.println("convertRemove procKod.charAt(firstBrace) = " + procKod.charAt(firstBrace) + " firstBrace: " + firstBrace);
             int lastBrace = findMatchingBrace(procKod, firstBrace);
-            System.out.println("convertGet procKod.charAt(lastBrace) = " + procKod.charAt(lastBrace) + " lastBrace: " + lastBrace);
+            System.out.println("convertRemove procKod.charAt(lastBrace) = " + procKod.charAt(lastBrace) + " lastBrace: " + lastBrace);
             procKod.insert(lastBrace, ",1");
         }
         String searchStr = name + ".remove\\(";
@@ -113,11 +115,10 @@ public class ConvertArrayLists {
         m = pattern.matcher(procKod);
         while (m.find()) {
             System.out.println("convertAdd m.group() = " + m.group());
-            procKod.replace(m.start(), m.end(), functionName+name+", ");
+            procKod.replace(m.start(), m.end(), functionName + name + ", ");
             InsertFunctions.insert(procKod, functionToInsert);
-        }        
+        }
     }
-
 
     private static int findMatchingBrace(StringBuffer code, int firstBrace) {
         int nr = 0;

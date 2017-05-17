@@ -22,11 +22,23 @@ class InsertFunctions {
 //    }
     final static public String ArrayListRemove
             = "function processing2p5jsArrayListRemove(arr, index){\n"
-            + "  var retVal = arr[index];\n"
-            + "  arr.splice(index,1);\n"
-            + "  return retVal;\n"
-            + "  \n"
-            + "}";
+            + "  if (typeof(index) === 'number') {\n"
+            + "    var retVal = arr[index];\n"
+            + "    arr.splice(index,1);\n"
+            + "    return retVal;\n"
+            + "    \n"
+            + "  }\n"
+            + "  else{\n"
+            + "    for(var i =0; i < arr.length ; i++){\n"
+            + "      if(arr[i]==index){\n"
+            + "        var retVal = arr[i];\n"
+            + "        arr.splice(i,1);\n"
+            + "        return retVal;\n"
+            + "      }\n"            
+            + "    }\n"
+            + "  }\n"
+            + "}\n";
+
     final static public String New2DArray
             = "function processing2p5jsNew2DArray(x,y){\n"
             + "    var arr = new Array(x);\n"
@@ -61,7 +73,6 @@ class InsertFunctions {
             + "  \n"
             + "}";
      */
-
     public static void insert(StringBuffer procCode, String func) {
         if (procCode.indexOf(func) == -1) {
             procCode.append("\n");

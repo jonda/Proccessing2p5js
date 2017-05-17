@@ -42,7 +42,8 @@ public class ConvertClass {
     public static ArrayList<String> convertClasses(StringBuffer procKod) {
 //        String patternStr = "(public|private)? class \\s+([a-zA-Z0-9]+)\\([ ,.a-zA-Z0-9]*\\)\\s*\\{";
         ArrayList<String> classList = new ArrayList<String>();
-        String patternStr = "(private|public)?\\s*class\\s+([a-zA-Z0-9]+)\\s*\\{";
+//        String patternStr = "(private|public)?\\s*class\\s+([a-zA-Z0-9]+)\\s*\\{";
+        String patternStr = "(private|public)?\\s*class\\s+([a-zA-Z0-9]+)\\s*(extends\\s+[a-zA-Z0-9]+\\s*)?\\{";
 
         Pattern pattern = Pattern.compile(patternStr);
         Matcher m = pattern.matcher(procKod);
@@ -51,14 +52,16 @@ public class ConvertClass {
             end = m.end();
             int start = m.start();
             //end=procKod.indexOf("{",end)
+            System.out.println("convertClasses m.group() = '" + m.group()+"'");
+            System.out.println("procKod.charAt(end-1) = " + procKod.charAt(end-1));
             end = passCurlyBrackets(procKod, end - 1);
             String classCode = procKod.substring(start, end);
+            System.out.println("convertClasses start:"+start+" end: "+end+"classCode = " + classCode);
             classList.add(getClassName(classCode.trim()));
-            System.out.println("classCode = " + classCode);
             String newCode = convertClass(classCode);
             procKod.replace(start, end, newCode);
             end = end + newCode.length() - classCode.length();
-            System.out.println("convertClasses end = " + end + "procCode.length(): " + procKod.length());
+            //System.out.println("convertClasses end = " + end + "procCode.length(): " + procKod.length());
         }
         if (end == 0) {
             System.out.println("Ingen klass hittad");
@@ -74,13 +77,13 @@ public class ConvertClass {
         StringBuffer codeBuf = new StringBuffer(code);
         ArrayList<String> members = getAndDeleteMembers(codeBuf);
         String initCode = getMembersAndInit(codeBuf, members);//Obs lägger till i members
-        System.out.println("convertClass initCode = " + initCode);
+        //System.out.println("convertClass initCode = " + initCode);
         //fixMemberVariablesinMethods(codeBuf);
         code = codeBuf.toString();
-        System.out.println("members = " + members);
+        //System.out.println("members = " + members);
         code = code.trim();
         String className = getClassName(code);
-        System.out.println("convertClass className = " + className);
+        //System.out.println("convertClass className = " + className);
         code = changeConstructor(code, className, members, initCode);
         code = convertFunctions(new StringBuffer(code), members);
         //code = removeMembers(code);
@@ -104,10 +107,10 @@ public class ConvertClass {
 
             //String funcname = funcm.group(2);
             String varNamn = m.group(2);
-            //System.out.println("m.group(0) = " + m.group(0));
+            ////System.out.println("m.group(0) = " + m.group(0));
             int nextCurly = codeBuf.indexOf("{", end);
-            //System.out.println("nextCurly = " + nextCurly);
-            //System.out.println("m.start() = " + m.start());
+            ////System.out.println("nextCurly = " + nextCurly);
+            ////System.out.println("m.start() = " + m.start());
             if (nextCurly < m.start()) {
                 end = passCurlyBrackets(codeBuf, nextCurly);
             } else {
@@ -125,7 +128,7 @@ public class ConvertClass {
     private static String getMembersAndInit(StringBuffer codeBuf, ArrayList<String> mem) {
 
 
-        String patternStr = "(void|color|int|float|double|long|String|StringBuffer|char|byte)\\s+([a-zA-Z]+)(\\s*=\\s*.+;)";
+        String patternStr = "("+Konverter.BASETYPES+")\\s+([a-zA-Z]+)(\\s*=\\s*.+;)";
         Pattern function = Pattern.compile(patternStr);
         String initCode="";
         Matcher m = function.matcher(codeBuf);
@@ -138,7 +141,7 @@ public class ConvertClass {
 //            String init = "this."+varNamn+m.group(3);
             String init = varNamn+m.group(3);
             //System.out.println("m.group(0) = " + m.group(0));
-            System.out.println("getAndDeleteMembers init = " + init);
+            //System.out.println("getAndDeleteMembers init = " + init);
             int nextCurly = codeBuf.indexOf("{", end);
             //System.out.println("nextCurly = " + nextCurly);
             //System.out.println("m.start() = " + m.start());
@@ -170,22 +173,23 @@ public class ConvertClass {
             }
         }
         int nr = 0;
-        //System.out.println("passCurlyBrackets start: " + start + " strBuf.length(): " + strBuf.length());
+        System.out.println("passCurlyBrackets start: " + start + " strBuf.length(): " + strBuf.length());
         for (int i = start; i < strBuf.length(); i++) {
             //System.out.println("i loop strBuf.charAt(" + i + ") = " + strBuf.charAt(i));
             if (strBuf.charAt(i) == '{') {
                 nr++;
-                //System.out.println("hittat { nr: " + nr + " i: " + i);
+                System.out.println("hittat { nr: " + nr + " i: " + i);
             } else if (strBuf.charAt(i) == '}') {
                 nr--;
-                //System.out.println("hittat } nr: " + nr + " i:" + i);
+                System.out.println("hittat } nr: " + nr + " i:" + i);
                 if (nr == 0) {
                     return i + 1;
                 }
             }
 
         }
-        return start;
+        System.out.println("strBuf.length() = " + strBuf.length());
+        return strBuf.length();
     }
     private static void insertInitCode(StringBuffer codeBuf, int start,  String initCode) {
         int startBody = codeBuf.indexOf("{", start) + 1;
@@ -193,7 +197,7 @@ public class ConvertClass {
     }
     private static String changeConstructor(String code, String className, ArrayList<String> members, String initCode) {
         String searchString = className + "\\(";
-        System.out.println("changeConstructorName searchString = " + searchString);
+        //System.out.println("changeConstructorName searchString = " + searchString);
         code = code.replaceFirst(searchString, "constructor(");
         //String pStr = "(void|int|float|double|long|String|StringBuffer|char|byte)";
         StringBuffer procKod = new StringBuffer(code);
@@ -215,7 +219,7 @@ public class ConvertClass {
             // procKod.replace(start, end, funcExp);
             end = start + funcExp.length();
             insertInitCode(procKod, end, initCode);
-            System.out.println("changeConstructor efter insertIninitCode procKod = " + procKod);
+            //System.out.println("changeConstructor efter insertIninitCode procKod = " + procKod);
             fixMemberVariablesinMethods(procKod, end, paramList, members);
         }
         if (end == 0) {
@@ -231,22 +235,22 @@ public class ConvertClass {
     }*/
     private static String[] getFunctionParameters(String funcExp) {
 
-        System.out.println("funcExp = " + funcExp);
+        //System.out.println("funcExp = " + funcExp);
         int leftParanIndex = funcExp.indexOf('(');
-        System.out.println("leftParanIndex = " + leftParanIndex);
+        //System.out.println("leftParanIndex = " + leftParanIndex);
         int rightParanIndex = funcExp.indexOf(')');
-        System.out.println("rightParanIndex = " + rightParanIndex);
+        //System.out.println("rightParanIndex = " + rightParanIndex);
         String params = funcExp.substring(leftParanIndex + 1, rightParanIndex);
         params = params.replaceAll(" ", "");
-        System.out.println("params = " + params);
+        //System.out.println("params = " + params);
         String[] paramList = params.split(",");
         return paramList;
     }
 
     private static String replaceVar(String code, String var, String repl) {
-        System.out.println("repl = " + repl);
-        System.out.println("var = " + var);
-        System.out.println("replaceVar code = " + code);
+        //System.out.println("repl = " + repl);
+        //System.out.println("var = " + var);
+        //System.out.println("replaceVar code = " + code);
         //        String patternStr = "(public|private)? class \\s+([a-zA-Z0-9]+)\\([ ,.a-zA-Z0-9]*\\)\\s*\\{";
         String patternStr = var;
         StringBuffer codeBuf = new StringBuffer(code);
@@ -263,7 +267,7 @@ public class ConvertClass {
                 end = end + repl.length() - var.length();
             }
         }
-        System.out.println("replaceVar codeBuf = " + codeBuf);
+        //System.out.println("replaceVar codeBuf = " + codeBuf);
         return codeBuf.toString();
     }
 //    private static String replaceVar(String code,String var,String repl){
@@ -289,12 +293,12 @@ public class ConvertClass {
 
     private static void fixMemberVariablesinMethods(StringBuffer codeBuf, int start, String[] paramList, ArrayList<String> members) {
         int startBody = codeBuf.indexOf("{", start) + 1;
-        System.out.println("fixMemberVariablesinMethods leftCurly = " + startBody);
+        //System.out.println("fixMemberVariablesinMethods leftCurly = " + startBody);
 //        int endBody = codeBuf.indexOf("}", startBody) - 1;
         int endBody = passCurlyBrackets(codeBuf, startBody - 1);
-        System.out.println("fixMemberVariablesinMethods rightCurly = " + endBody);
+        //System.out.println("fixMemberVariablesinMethods rightCurly = " + endBody);
         String codeBody = codeBuf.substring(startBody, endBody);
-        System.out.println("codeBody = " + codeBody);
+        //System.out.println("codeBody = " + codeBody);
         for (int j = 0; j < members.size(); j++) {
             boolean lika = false;
             String mem = members.get(j);
@@ -310,12 +314,12 @@ public class ConvertClass {
             }
         }
         codeBuf.replace(startBody, endBody, codeBody);
-        System.out.println("efter repl codeBody = " + codeBody);
+        //System.out.println("efter repl codeBody = " + codeBody);
     }
 
     public static String convertFunctions(StringBuffer procKod, ArrayList<String> members) {
         //        String functionPatternStr = "([a-zA-Z0-9]+)\\[([ ,.a-zA-Z0-9]+)\\]";
-        String functionPatternStr = "(void|int|float|double|long|String|StringBuffer|char|byte)\\s+([a-zA-Z0-9]+)\\([ ,.a-zA-Z0-9]*\\)";
+        String functionPatternStr = "("+Konverter.BASETYPES+")\\s+([a-zA-Z0-9]+)\\([ ,.a-zA-Z0-9]*\\)";
         Pattern functionPattern = Pattern.compile(functionPatternStr);
         Matcher funcm = functionPattern.matcher(procKod);
         int end = 0;
@@ -324,8 +328,8 @@ public class ConvertClass {
             end = funcm.end();
             //String funcname = funcm.group(2);
             String funcExp = funcm.group(0);
-            System.out.println("funcExp = " + funcExp);
-            funcExp = funcExp.replaceAll("(void|color|int|float|double|long|String|StringBuffer|char|byte)", "");
+            //System.out.println("funcExp = " + funcExp);
+            funcExp = funcExp.replaceAll("("+Konverter.BASETYPES+")", "");
             String[] paramList = getFunctionParameters(funcExp);
             System.out.print("paramList = ");
             printArray(paramList);
@@ -358,22 +362,23 @@ public class ConvertClass {
     }
 
     private static String getClassName(String code) {
+        System.out.println("->getClassName code = " + code);
         int start = -1;
         for (int i = "class".length(); i < code.length() && (start == -1); i++) {
             if (code.charAt(i) != ' ') {
                 start = i;
             }
         }
-        //System.out.println("getClassName start = " + start);
+        System.out.println("getClassName start = " + start);
         int end = -1;
         for (int i = "class".length() + start; i < code.length() && (end == -1); i++) {
             if (code.charAt(i) == ' ' || code.charAt(i) == '{') {
                 end = i;
             }
         }
-        //System.out.println("getClassName end = " + end);
+        System.out.println("getClassName end = " + end);
         String name = code.substring(start, end);
-        //System.out.println("getClassName name = '" + name + "'");
+        System.out.println("getClassName name = '" + name + "'");
         name=name.trim();
         return name;
     }

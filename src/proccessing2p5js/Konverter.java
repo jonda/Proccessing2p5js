@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+//new JFRame  getElementById;
+//new Jbutton 
 /**
  *
  * @author dahjon
@@ -19,7 +21,9 @@ public class Konverter {
 
     static String[][] replaceFunctions = {
         {"size", "createCanvas"},
-        {"println", "print"},
+        {"println", "console.log"},
+        {"System.out.println", "print"},
+        {"System.out.print", "print"},
         {"mousePressed", "touchStarted"},
         {"mouseDragged", "touchMoved"},
         {"mouseReleased", "touchEnded"},
@@ -29,10 +33,14 @@ public class Konverter {
         {"Double.pareDouble", "Number"},
         {"Integer.valueOf", "Number"},
         {"Double.valueOf", "Number"},
-        {"new PVector", "createVector"},};
+        {"JOptionPane.showInputDialog", "prompt"},
+        {"new PVector", "createVector"}, //{"new JFrame", "document.getElementById(\"settings\""}
+    //{"new JButton", "document.createElement(\"BUTTON\""},
+    };
 
     static String[][] replaceVariables = {
         {"keyPressed", "keyIsPressed"},
+        {"ESC", "ESCAPE"},
         {"LEFT", "LEFT_ARROW"},
         {"RIGHT", "RIGHT_ARROW"},
         {"UP", "UP_ARROW"},
@@ -60,6 +68,8 @@ public class Konverter {
         removeCasts(procKod);
         procKod = replaceVariables(procKod);
         insertSetupMethodIfNeeded(procKod);
+        moveInit(procKod);
+        exceptions(procKod);
         return procKod;
     }
 
@@ -79,8 +89,8 @@ public class Konverter {
             funcExp = funcExp.replaceAll("\\[\\]", "");
             procKod.replace(start, end, funcExp);
 
-            /*            System.out.println("funcm.group(0): "+funcExp);
-            System.out.println("\nfunctions namn: '" + funcname + "'\n");
+            System.out.println("convertFunctions funcm.group(0)=funcExp: " + funcExp);
+            /*System.out.println("\nfunctions namn: '" + funcname + "'\n");
 
             String type = replaceFirstMatch(funcm, procKod, "function");
             end = funcm.end();
@@ -125,9 +135,13 @@ public class Konverter {
         while (varm.find(end)) {
 
             end = varm.end();
+            int lineStart = Math.max(procKod.lastIndexOf("\n", end),0);
+            //System.out.println("lineStart = " + lineStart);
             //System.out.println("end = " + end);
-            String type = replaceFirstMatch(varm, procKod, "var");
-            end += "var".length() - type.length();
+            if (procKod.substring(lineStart, varm.start()).indexOf("class")==-1){
+                String type = replaceFirstMatch(varm, procKod, "var");
+                end += "var".length() - type.length();
+            }
 
         }
 
@@ -233,7 +247,7 @@ public class Konverter {
 
     private static void replaceFunctions(StringBuffer procKod) {
 //        String functionPatternStr = "([a-zA-Z0-9]+)\\s*\\([ ,.a-zA-Z0-9]*\\)";
-        String functionPatternStr = "([a-zA-Z0-9]+)\\s*\\(";
+        String functionPatternStr = "([a-zA-Z0-9\\.]+)\\s*\\(";
         Pattern functionPattern = Pattern.compile(functionPatternStr);
         Matcher m = functionPattern.matcher(procKod);
         int end = 0;
@@ -241,14 +255,17 @@ public class Konverter {
             end = m.end();
 
             String funcname = m.group(1);
-            System.out.println("replaceFunctions funcname: " + funcname);
+            System.out.println("replaceFunctions funcname: '" + funcname + "'");
             String news = searchReplaceFunction(funcname);
             if (news != null) {
                 System.out.println("replaceFunctions m.start(1) = " + m.start(1));
-                char charBefore = procKod.charAt(m.start(1) - 1);
+                int charBeforeIndex = Math.max(m.start(1) - 1, 0);
+                char charBefore = procKod.charAt(charBeforeIndex);
+                System.out.println("charBefore = " + charBefore);
                 //String name = replaceFirstMatch(funcm, procKod, news);
                 //  end += news.length() - name.length();
-                if (!(Character.isLetter(charBefore) || charBefore == '.')) {
+                //Undantag om funktionen står på första raden... charBeforeIndex==0
+                if (!(Character.isLetter(charBefore) || charBefore == '.') || charBeforeIndex == 0) {
                     procKod.replace(m.start(1), m.end(1), news);
                     end = m.start(1) + news.length();
                 }
@@ -390,9 +407,9 @@ public class Konverter {
             Matcher mr = pattern.matcher(procKod);
             while (mr.find()) {
                 int firstParen = getPreviousParenAndSkippOrOperator(procKod, mr.start());
-                String firstParam = procKod.substring(firstParen+1, mr.start());
-                String newCode="processing2p5jsCompareColors("+firstParam+", "+col+")";
-                procKod.replace(firstParen+1, mr.end(), newCode);
+                String firstParam = procKod.substring(firstParen + 1, mr.start());
+                String newCode = "processing2p5jsCompareColors(" + firstParam + ", " + col + ")";
+                procKod.replace(firstParen + 1, mr.end(), newCode);
                 InsertFunctions.insert(procKod, InsertFunctions.CompareColors);
             }
 
@@ -402,40 +419,103 @@ public class Konverter {
     }
 
     private static int getPreviousParenAndSkipp(StringBuffer procKod, int start) {
-        int i=start;
-        int antal=0;
-        while(i>0){
-            if(procKod.charAt(i)=='('){
+        int i = start;
+        int antal = 0;
+        while (i > 0) {
+            if (procKod.charAt(i) == '(') {
                 antal--;
-            }
-            else if(procKod.charAt(i)==')'){
+            } else if (procKod.charAt(i) == ')') {
                 antal++;
             }
-            if(antal==-1){
+            if (antal == -1) {
                 return i;
             }
             i--;
         }
         return 0;
     }
+
     private static int getPreviousParenAndSkippOrOperator(StringBuffer procKod, int start) {
-        int i=start;
-        int antal=0;
-        while(i>0){
+        int i = start;
+        int antal = 0;
+        while (i > 0) {
             char c = procKod.charAt(i);
-            if(c=='('){
+            if (c == '(') {
                 antal--;
-            }
-            else if(procKod.charAt(i)==')'){
+            } else if (procKod.charAt(i) == ')') {
                 antal++;
-            } else if(c=='|'||c=='&'){
+            } else if (c == '|' || c == '&') {
                 return i;
             }
-            if(antal==-1){
+            if (antal == -1) {
                 return i;
             }
             i--;
         }
         return 0;
+    }
+//var bla=color(255,0,0);
+//
+    //var rod = color(0, 0, 255);
+//var boll = new Boll();
+
+    private static void moveInit(StringBuffer procKod) {
+
+        //Vi måste börja med att hitta första funktionen
+        Pattern pattern = Pattern.compile("\\s*function\\s+[A-Za-z0-9]+\\s*\\(");
+        Matcher m = pattern.matcher(procKod);
+        m.find();
+        int slutVarDel = m.start();
+        String varDeclCode = procKod.substring(0, slutVarDel);
+        System.out.println("varDeclCode = " + varDeclCode);
+        //var\s+([A-Za-z0-9]+\s*=[\\s*new]?\s*[A-Za-z0-9]+\s*\()
+
+        pattern = Pattern.compile("var\\s+([A-Za-z0-9]+\\s*)(=(\\s*new)?\\s*[A-Za-z0-9]+\\s*\\(.+;)");
+        StringBuffer varDelBuf = new StringBuffer(varDeclCode);
+        m = pattern.matcher(varDelBuf);
+        int end = 0;
+        String initStr = "\n";
+        while (m.find(end)) {
+            end = m.end();
+            System.out.println("moveInit m.group(0) = " + m.group(0));
+            System.out.println("moveInit m.group(1) = " + m.group(1));
+            System.out.println("moveInit m.group(2) = " + m.group(2));
+            initStr += "   " + m.group(1) + m.group(2) + "\n";
+            end = end - (m.group(2).length() - 1);
+
+            varDelBuf.delete(m.start(2), m.end(2) - 1);
+
+        }
+        System.out.println("varDelBuf = " + varDelBuf);
+        procKod.replace(0, slutVarDel, varDelBuf.toString());
+        //Nu är det dags att stoppa in strä'ngen på rätt ställe
+        System.out.println("moveInit initStr = " + initStr);
+        //function\s+setup\s*\(.+{
+        // function setup() {
+
+        pattern = Pattern.compile("function\\s+setup\\(.+\\{");
+        m = pattern.matcher(procKod);
+        if (m.find()) {
+            procKod.insert(m.end(), initStr);
+        } else {
+            System.out.println("moveInit Ingen setupmetod!!!! konstigt ");
+        }
+    }
+
+    private static void exceptions(StringBuffer procKod) {
+        StringBufferUtils.replaceAll(procKod, "// js ", "");
+
+        //Ta bort rader som inte ska vara i js
+        Pattern pattern = Pattern.compile("// notjs\\s");
+        Matcher m = pattern.matcher(procKod);
+        int end = 0;
+        while (m.find(end)) {
+            int rowStart = procKod.lastIndexOf("\n", m.start()) + 1;
+            int rowEnd = procKod.indexOf("\n", m.start());
+            procKod.replace(rowStart, rowEnd, "");
+            end = rowStart + 1;
+        }
+
+        //Ta bort raden innan....
     }
 }
