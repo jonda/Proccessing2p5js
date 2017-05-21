@@ -5,6 +5,7 @@
  */
 package proccessing2p5js;
 
+import proccessing2p5js.replaceclass.ReplaceClass;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,6 +40,7 @@ public class Konverter {
     };
 
     static String[][] replaceVariables = {
+        {"P3D", "WEBGL"},
         {"keyPressed", "keyIsPressed"},
         {"ESC", "ESCAPE"},
         {"LEFT", "LEFT_ARROW"},
@@ -50,6 +52,7 @@ public class Konverter {
     };
 
     static public StringBuffer konvert(StringBuffer procKod) {
+        ReplaceClass.replaceClasses(procKod);
         convertColorComparison(procKod);
         ArrayList<String> classList = ConvertClass.convertClasses(procKod);
         ConvertPVector.convertPVector(procKod);
@@ -170,7 +173,10 @@ public class Konverter {
     }
 //int[] position = {20,22,25,30,35,40,42,40,35,30,25,22,20,17,15,14,13,14,15,17,19,20,20};
     //new int[40]
-
+/*  bTemp = {
+        createVector(), createVector()
+      };
+    */
     private static void convertOneDimArrayCreation(StringBuffer procKod) {
 //        Pattern pattern = Pattern.compile("new (color|int|float|double|long|String|StringBuffer|char|byte)(\\[[a-zA-Z0-9]+\\])");
         Pattern pattern = Pattern.compile("new ([a-zA-Z0-9]+)(\\[[a-zA-Z0-9]+\\])");
@@ -191,9 +197,10 @@ public class Konverter {
             end += "Array".length() - type.length();
 
         }
-        pattern = Pattern.compile("=\\s*\\{.+\\};");
+        pattern = Pattern.compile("=\\s*\\{[. \\n,A-Za-z\\(\\)\\s]+\\}\\s*;");
         varm = pattern.matcher(procKod);
         end = 0;
+        System.out.println("Kollar om det finns endim array {...}");
         while (varm.find(end)) {
             end = varm.end();
             String arrInit = varm.group(0);
@@ -255,13 +262,13 @@ public class Konverter {
             end = m.end();
 
             String funcname = m.group(1);
-            System.out.println("replaceFunctions funcname: '" + funcname + "'");
+            //System.out.println("replaceFunctions funcname: '" + funcname + "'");
             String news = searchReplaceFunction(funcname);
             if (news != null) {
-                System.out.println("replaceFunctions m.start(1) = " + m.start(1));
+                //System.out.println("replaceFunctions m.start(1) = " + m.start(1));
                 int charBeforeIndex = Math.max(m.start(1) - 1, 0);
                 char charBefore = procKod.charAt(charBeforeIndex);
-                System.out.println("charBefore = " + charBefore);
+                //System.out.println("charBefore = " + charBefore);
                 //String name = replaceFirstMatch(funcm, procKod, news);
                 //  end += news.length() - name.length();
                 //Undantag om funktionen står på första raden... charBeforeIndex==0

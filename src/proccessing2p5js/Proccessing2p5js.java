@@ -111,7 +111,7 @@ public class Proccessing2p5js extends JFrame {
         laddaFil();
         konvertera();
         saveProperties();
-        sparaFil();
+        //sparaFil();
     }
 
     private void konvertera() {

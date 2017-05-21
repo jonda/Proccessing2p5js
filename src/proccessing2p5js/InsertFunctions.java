@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
  *
  * @author Jonathan
  */
-class InsertFunctions {
+public class InsertFunctions {
 
     //Function creatwTwoDimentionalArray = new Function("")
 //    function processing2p5jsNew2DArray(var x, y){
